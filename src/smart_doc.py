@@ -12,11 +12,11 @@ doc_client = DocumentAnalysisClient(
 
 """ funcao responsavel por receber bytes do arquivo pdf e retornar o texto extraido """
 def extract_text(file_bytes: bytes) -> str:
-    #enviando documento para ser processado no azure
+    """ enviando documento para ser processado no azure """
     poller = doc_client.begin_analyze_document(
         "prebuilt-read", document=BytesIO(file_bytes)) 
     
-    #contem todas as páginas, linhas e palavras extraídas do pdf
+    """ contem todas as páginas, linhas e palavras extraídas do pdf """
     result = poller.result()
 
     text = " ".join(
