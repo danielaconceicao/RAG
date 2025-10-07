@@ -1,6 +1,5 @@
 from azure.storage.blob import BlobServiceClient
-import os, json
-from datetime import datetime
+import os
 
 # parte responsavel por controlar tudo da storage
 blob_connection = os.getenv("AZURE_BLOB_CONNECT_STR")
