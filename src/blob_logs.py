@@ -6,7 +6,7 @@ blob_connection_string = os.getenv("AZURE_BLOB_CONNECTION_STR")
 blob_service_client = BlobServiceClient.from_connection_string(blob_connection_string)
 
 # container onde você quer guardar as respostas do chatbot
-log_container_name = "chatbotlogs"
+log_container_name = os.getenv("AZURE_BLOB_LOGS_CONTAINER")
 
 def upload_chat_response(question: str, answer: str):
     # salva a pergunta e a resposta em formato json dentro do container chatbotlogs
