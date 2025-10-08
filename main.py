@@ -1,8 +1,11 @@
+from dotenv import load_dotenv
+load_dotenv()
+
 from fastapi import FastAPI, Form
 from src import smart_doc, openai, search_service, blob_logs
 
 app = FastAPI(title="RAG Chatbot")
-
+search_service.create_vector_index()
 
 pdf_path = "data/O-Alienista.pdf"
 

@@ -3,55 +3,76 @@ from azure.search.documents import SearchClient
 from azure.search.documents.indexes import SearchIndexClient
 from azure.search.documents.indexes.models import (
     SearchIndex, SimpleField, SearchFieldDataType, SearchableField,
-    VectorSearch, VectorSearchAlgorithmConfiguration, HnswParameters, VectorSearchProfile
+    VectorSearch, VectorSearchProfile, HnswParameters,
+    HnswAlgorithmConfiguration, SearchField
 )
 import os
 
 search_endpoint = os.getenv("AZURE_AISEARCH_ENDPOINT")
 search_key = os.getenv("AZURE_AISEARCH_KEY")
-index_name = os.getenv("AZURE_INDEX_NAME")
+index_name = os.getenv("AZURE_AISEARCH_INDEX_NAME")
 
-search_client = SearchClient(search_endpoint, index_name, AzureKeyCredential(search_key))
-index_client = SearchIndexClient(search_endpoint, AzureKeyCredential(search_key))
+search_client = SearchClient(
+    search_endpoint, index_name, AzureKeyCredential(search_key))
+index_client = SearchIndexClient(
+    search_endpoint, AzureKeyCredential(search_key))
+
 
 def create_vector_index():
     """Cria o índice vetorial se ainda não existir."""
     try:
         index_client.get_index(index_name)
-        print("✅ Índice já existe.")
+        print("O índice já existe.")
         return
     except:
         pass
+
+    VECTOR_DIMENSIONS = 1536
+    VECTOR_PROFILE_NAME = "vectorProfile"
+    VECTOR_ALGORITHM_NAME = "hnsw-config"
 
     index = SearchIndex(
         name=index_name,
         fields=[
             SimpleField(name="id", type=SearchFieldDataType.String, key=True),
             SearchableField(name="content", type=SearchFieldDataType.String),
-            SimpleField(name="contentVector", type=SearchFieldDataType.Collection(SearchFieldDataType.Single))
+
+            SearchField(
+                name="contentVector",
+                type=SearchFieldDataType.Collection(
+                    SearchFieldDataType.Single),
+                searchable=True,
+                vector_search_dimensions=VECTOR_DIMENSIONS,
+                vector_search_profile_name=VECTOR_PROFILE_NAME
+            )
+
+
         ],
+
         vector_search=VectorSearch(
-            algorithm_configurations=[
-                VectorSearchAlgorithmConfiguration(
-                    name="vectorConfig",
-                    kind="hnsw",
+            algorithms=[
+                HnswAlgorithmConfiguration(
+                    name=VECTOR_ALGORITHM_NAME,
                     parameters=HnswParameters(metric="cosine")
                 )
             ],
             profiles=[
                 VectorSearchProfile(
-                    name="vectorProfile",
-                    algorithm_configuration_name="vectorConfig"
+                    name=VECTOR_PROFILE_NAME,
+                    algorithm_configuration_name=VECTOR_ALGORITHM_NAME
                 )
             ]
         )
     )
+    
     index_client.create_index(index)
-    print("✅ Índice criado com sucesso!")
+    print("Índice criado com sucesso!")
+
 
 def upload_documents(docs):
     search_client.upload_documents(docs)
-    print("📚 Documentos enviados ao índice.")
+    print("Documenti inviati all'indice.")
+
 
 def search_semantic(query: str):
     results = search_client.search(search_text=query, top=3)

@@ -7,11 +7,12 @@ client = AzureOpenAI(
     api_version="2024-02-15-preview"
 )
 
+embedding_deployment = os.getenv("AZURE_OPENAI_EMBEDDING_DEPLOYMENT")
 deployment = os.getenv("AZURE_OPENAI_DEPLOYMENT") 
 
 def get_embedding(text: str):
     response = client.embeddings.create(
-        model="text-embedding-3-small",
+        model=embedding_deployment,
         input=text
     )
     return response.data[0].embedding
