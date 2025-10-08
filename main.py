@@ -26,7 +26,6 @@ search_service.upload_documents([doc])
 print(f"PDF '{pdf_path}' indexado com sucesso!")
 
 
-
 @app.post("/chat")
 async def chat(question: str = Form(...)):
     # busca trechos mais relevantes do pdf
@@ -35,6 +34,9 @@ async def chat(question: str = Form(...)):
 
     # gera resposta do gpt usando apenas o contexto do pdf
     answer = openai.chat_with_context(context, question)
+
+    # salva a resposta no Blob Storage
+    blob_logs.upload_chat_response(question, answer)
     return {"answer": answer}
 
 
