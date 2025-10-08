@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Form
-from src import smart_doc, openai, search_service
+from src import smart_doc, openai, search_service, blob_logs
 
 app = FastAPI(title="RAG Chatbot")
 
@@ -35,6 +35,9 @@ async def chat(question: str = Form(...)):
 
     # gera resposta do gpt usando apenas o contexto do pdf
     answer = openai.chat_with_context(context, question)
+
+    # salva a resposta no blob logs 
+    blob_logs.upload_chat_response(question, answer)
     return {"answer": answer}
 
 
