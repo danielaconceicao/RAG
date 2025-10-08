@@ -2,7 +2,7 @@ from azure.storage.blob import BlobServiceClient
 import os, json
 from datetime import datetime, timezone
 
-blob_connection_string = os.getenv("AZURE_BLOB_CONNECTION_STR")
+blob_connection_string = os.getenv("AZURE_BLOB_CONNECT_STR")
 blob_service_client = BlobServiceClient.from_connection_string(blob_connection_string)
 
 # container onde você quer guardar as respostas do chatbot
