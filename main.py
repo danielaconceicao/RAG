@@ -35,9 +35,6 @@ async def chat(question: str = Form(...)):
 
     # gera resposta do gpt usando apenas o contexto do pdf
     answer = openai.chat_with_context(context, question)
-
-    # Salva a resposta no Blob Storage
-    blob_logs.upload_chat_response(question, answer)
     return {"answer": answer}
 
 
