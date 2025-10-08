@@ -5,7 +5,6 @@ from io import BytesIO
 
 smart_doc_endpoint = os.getenv("AZURE_SMART_DOCUMENT_ENDPOINT")
 smart_doc_key = os.getenv("AZURE_SMART_DOCUMENT_KEY")
-print("SMART_DOC_KEY:", os.getenv("AZURE_SMART_DOCUMENT_KEY"))
 
 """ variavel responsavel por fazer a ponte tra o meu codigo e o azure """
 doc_client = DocumentAnalysisClient(
