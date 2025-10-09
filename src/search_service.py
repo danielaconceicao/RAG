@@ -12,17 +12,16 @@ search_endpoint = os.getenv("AZURE_AISEARCH_ENDPOINT")
 search_key = os.getenv("AZURE_AISEARCH_KEY")
 index_name = os.getenv("AZURE_AISEARCH_INDEX_NAME")
 
-search_client = SearchClient(
-    search_endpoint, index_name, AzureKeyCredential(search_key))
-index_client = SearchIndexClient(
-    search_endpoint, AzureKeyCredential(search_key))
+search_client = SearchClient(search_endpoint, index_name, AzureKeyCredential(search_key))
+
+index_client = SearchIndexClient(search_endpoint, AzureKeyCredential(search_key))
 
 
+# cria o índice vetorial se ainda não existir.
 def create_vector_index():
-    """Cria o índice vetorial se ainda não existir."""
     try:
         index_client.get_index(index_name)
-        print("O índice já existe.")
+        print("L'indice gia esiste.")
         return
     except:
         pass
@@ -66,14 +65,14 @@ def create_vector_index():
     )
     
     index_client.create_index(index)
-    print("Índice criado com sucesso!")
+    print("Indice creato con successo!")
 
-
+#envia embeddings ao indice
 def upload_documents(docs):
     search_client.upload_documents(docs)
     print("Documenti inviati all'indice.")
 
-
+#busca trechos mais relevantes no indice
 def search_semantic(query: str):
     results = search_client.search(search_text=query, top=3)
     return [r["content"] for r in results]
