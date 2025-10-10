@@ -5,6 +5,11 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 import numpy as np
 from src.blob_storage import container_client
+import uuid
+from typing import Optional
+
+
+MAX_CONTEXT_TOKENS = 6000 
 
 app = FastAPI(title="RAG Chatbot")
 search_service.create_vector_index()
@@ -25,8 +30,8 @@ elif isinstance(pdf_text, bytes):
     pdf_text = pdf_text.decode("utf-8", errors="ignore")
 
 # Verifica tipo final
-print("Tipo de pdf_text:", type(pdf_text))
-print("Primeiros 200 caracteres:", pdf_text[:200])
+""" print("Tipo de pdf_text:", type(pdf_text))
+print("Primeiros 200 caracteres:", pdf_text[:200]) """
 
 # corta para evitar exceder limite
 chunks = [pdf_text[i:i+7000] for i in range(0, len(pdf_text), 7000)] 
@@ -59,25 +64,63 @@ search_service.upload_documents([doc])
 
 # defina um modelo Pydantic para a entrada
 class Question(BaseModel):
-    # O FastAPI agora espera um objeto JSON com esta chave
-    question: str 
+    question: str
+    session_id: Optional[str] = None 
 
 #recebe uma pergunta e busca trechos relevantes e responde
 @app.post("/chat")
-async def chat(question: Question):
+async def chat(request: Question):
     # acessa a pergunta atraves do objeto
-    q = question.question
+    question = request.question
+
+    #carrega ou cria uma sessao
+    session_id = request.session_id if request.session_id else str(uuid.uuid4())
+    history = blob_logs.load_session_history(session_id)
 
     # busca trechos mais relevantes do pdf
     context_docs = search_service.search_semantic(question)
     context = " ".join(context_docs)
 
-    # gera resposta do gpt usando apenas o contexto do pdf
-    answer = openai.chat_with_context(context, question)
+    #prepara a mensagem do sistema para contagem de tokens
+    system_message = {
+        "role": "system", 
+        "content": f"Você é um assistente RAG. Responda APENAS com base no seguinte contexto. Use o histórico de conversa para manter o contexto:\n\n{context}"
+    }
+
+    # calcula tokens do sistema + tokens do histórico
+    current_tokens = openai.count_tokens([system_message] + history)
+
+    if current_tokens >= MAX_CONTEXT_TOKENS:
+        
+        new_session_id = str(uuid.uuid4())
+        limit_message = (
+            "Limite de contexto (tokens) alcançado. "
+            "Por favor, inicie um novo chat. "
+            "Seu histórico foi salvo."
+        )
+        
+        # o bot apenas responde a mensagem de limite.
+        return {
+            "answer": limit_message,
+            "session_id": new_session_id # retorna um novo id para forçar o reinício
+        }
+
+    # gera a resposta com o histórico, só ocorre se o limite nao foi atingido
+    answer = openai.chat_with_context(context, question, history)
+
+     #salva historico: atualiza o histórico
+    new_user_message = {"role": "user", "content": question}
+    new_assistant_message = {"role": "assistant", "content": answer}
+
+    history.append(new_user_message)
+    history.append(new_assistant_message)
 
     # salva a resposta no blob logs
-    blob_logs.upload_chat_response(question, answer)
-    return {"answer": answer}
+    blob_logs.save_session_and_log(session_id, history)
+    return {
+        "answer": answer,
+        "session_id": session_id
+    }
 
 #lista pdfs no indice
 @app.get("/list_pdfs")

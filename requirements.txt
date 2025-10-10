@@ -7,3 +7,4 @@ azure-ai-formrecognizer==3.3.2
 azure-search-documents==11.4.0
 azure-core==1.30.0
 numpy
+tiktoken
