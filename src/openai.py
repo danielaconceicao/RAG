@@ -58,7 +58,12 @@ def chat_with_context(context: str, question: str, history: list):
    # mensagem do Sistema (contém o Contexto RAG)
     system_message = {
         "role": "system", 
-        "content": f"Sei un assistente RAG. Rispondere solo in base al seguente contesto. Utilizzare la cronologia delle conversazioni per mantenere il contesto:\n\n{context}"
+        "content": (
+            f"You are a RAG assistant. Respond ONLY based on the following context. "
+            f"If the answer is not explicitly in context, "
+            f"you MUST respond that the information was not found in the document. "
+            f"Use the conversation chronology to maintain the contest:\n\n{context}"
+        )
     }
 
     #constrói a lista de mensagens completa sistema + histórico + pergunta Atual

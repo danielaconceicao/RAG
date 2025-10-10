@@ -84,7 +84,12 @@ async def chat(request: Question):
     #prepara a mensagem do sistema para contagem de tokens
     system_message = {
         "role": "system", 
-        "content": f"Você é um assistente RAG. Responda APENAS com base no seguinte contexto. Use o histórico de conversa para manter o contexto:\n\n{context}"
+        "content": (
+            f"You are a RAG assistant. Respond ONLY based on the following context. "
+            f"If the answer is not explicitly in context, "
+            f"you MUST respond that the information was not found in the document. "
+            f"Use the conversation chronology to maintain the contest:\n\n{context}"
+        )
     }
 
     # calcula tokens do sistema + tokens do histórico
