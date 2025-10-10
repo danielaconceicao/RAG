@@ -1,5 +1,8 @@
-from azure.storage.blob import BlobServiceClient
+from dotenv import load_dotenv
+load_dotenv()
 import os
+from azure.storage.blob import BlobServiceClient
+
 
 # parte responsavel por controlar tudo da storage
 blob_connection = os.getenv("AZURE_BLOB_CONNECT_STR")

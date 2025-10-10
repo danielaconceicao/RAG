@@ -6,11 +6,12 @@ import os
 client = AzureOpenAI(
     api_key=os.getenv("AZURE_OPENAI_KEY"),
     azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
-    api_version="2024-12-01-preview"
+    api_version = "2024-12-01-preview"
 )
 
-#embedding_deployment = os.getenv("AZURE_OPENAI_EMBEDDING_DEPLOYMENT")
+embedding_deployment = os.getenv("AZURE_OPENAI_EMBEDDING_DEPLOYMENT")
 deployment = os.getenv("AZURE_OPENAI_DEPLOYMENT")
+ 
 
 
 # gera vetores embedding para um pedaço de texto (chunk).Verifica se o input é uma string válida e não vazia.
@@ -27,7 +28,7 @@ def get_embedding(text: str):
         return None
     try:
         response = client.embeddings.create(
-            model="gpt-4.1-nano",
+            model=embedding_deployment,
             input=text
         )
         return response.data[0].embedding
