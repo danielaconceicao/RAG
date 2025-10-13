@@ -41,6 +41,7 @@ def create_vector_index():
                 type=SearchFieldDataType.Collection(
                     SearchFieldDataType.Single),
                 searchable=True,
+                stored=True,
                 vector_search_dimensions=VECTOR_DIMENSIONS,
                 vector_search_profile_name=VECTOR_PROFILE_NAME
             )
@@ -74,5 +75,27 @@ def upload_documents(docs):
 
 #busca trechos mais relevantes no indice
 def search_semantic(query: str):
-    results = search_client.search(search_text=query, top=3)
+    results = search_client.search(search_text=query, top=3, select=["content", "contentVector"])
     return [r["content"] for r in results]
+
+#busca textual simples 
+def search_textual(query: str):
+    results = search_client.search(search_text=query, top=3, select=["content"])
+    return [r["content"] for r in results]
+
+#busca hibrida combinacao de semantica mais textual
+def search_hibryd(query: str):
+    #busca vetorial
+    semantic_results = search_semantic(query)
+    
+    #busca textual
+    textual_results= search_textual(query)
+
+    #combiana e remove duplicados mantendo a ordem
+    combined=[]
+    for r in semantic_results + textual_results:
+        if r not in combined:
+            combined.append(r)
+            
+    #retorna os 5 mais relevantes
+    return combined[:5]

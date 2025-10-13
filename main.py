@@ -78,7 +78,7 @@ async def chat(request: Question):
     history = blob_logs.load_session_history(session_id)
 
     # busca trechos mais relevantes do pdf
-    context_docs = search_service.search_semantic(question)
+    context_docs = search_service.search_hybrid(question)
     context = " ".join(context_docs)
 
     #prepara a mensagem do sistema para contagem de tokens
