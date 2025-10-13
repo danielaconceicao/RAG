@@ -11,7 +11,7 @@ cv_key = os.getenv("AZURE_CV_KEY")
 
 # cliente Computer Vision
 vision_client = ComputerVisionClient(
-    endpoint=cv_endpoint, credential=AzureKeyCredential(cv_key)
+    cv_endpoint, cv_key
 )
 
 #recebe bytes de uma imagem estraida do pdf e retorna uma descricao textual
