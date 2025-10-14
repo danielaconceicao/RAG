@@ -9,7 +9,7 @@ def send_question(question: str):
     #envia a pergunta e o id da sessão para a api, e atualiza o id.
     global global_session_id 
     
-    # O payload AGORA só inclui a pergunta e o ID
+    # o payload só inclui a pergunta e o id
     payload = {
         "question": question,
         # vai ser none na primeira vez, e o id nas seguintes
@@ -36,19 +36,14 @@ def send_question(question: str):
 
 
 def run_chat_cli():
-    
-    print("=" * 50)
-    print("        🚀 RAG Chatbot CLI Iniciado 🚀")
-    print("=" * 50)
-    print("🤖 Bot: Olá! Como posso te ajudar hoje?") # <--- A MENSAGEM PRINCIPAL
-    print("Digite 'sair' ou 'exit' a qualquer momento para terminar.")
-    print("-" * 50)
+    print("🤖 Bot: Ciao! Come posso aiutarti oggi?") 
+  
 
     while True:
         try:
             user_input = input("user: ")
 
-            if user_input.lower() in ['sair', 'exit']:
+            if user_input.lower() in ['uscire', 'exit']:
                 #para tudo
                 break
 

@@ -7,6 +7,9 @@ from azure.search.documents.indexes.models import (
     HnswAlgorithmConfiguration, SearchField
 )
 import os
+from src.openai import get_embedding
+from azure.search.documents.models import VectorizedQuery
+
 
 search_endpoint = os.getenv("AZURE_AISEARCH_ENDPOINT")
 search_key = os.getenv("AZURE_AISEARCH_KEY")
@@ -41,7 +44,7 @@ def create_vector_index():
                 type=SearchFieldDataType.Collection(
                     SearchFieldDataType.Single),
                 searchable=True,
-                stored=True,
+                retrievable=True,
                 vector_search_dimensions=VECTOR_DIMENSIONS,
                 vector_search_profile_name=VECTOR_PROFILE_NAME
             )
@@ -75,27 +78,46 @@ def upload_documents(docs):
 
 #busca trechos mais relevantes no indice
 def search_semantic(query: str):
-    results = search_client.search(search_text=query, top=3, select=["content", "contentVector"])
-    return [r["content"] for r in results]
+    query_vector = get_embedding(query)
+
+    # Crie a consulta vetorial
+    vector_query = VectorizedQuery(
+        vector=query_vector,
+        k_nearest_neighbors=20,
+        fields="contentVector"
+    )
+
+    # Agora chame o Azure Search corretamente
+    results = search_client.search(
+        search_text="",  # texto vazio porque estamos usando vetor
+        vector_queries=[vector_query],
+        select=["content"]
+    )
+
+    # Retorne os resultados como lista
+    return [r["content"] for r in results if "content" in r]
+
 
 #busca textual simples 
 def search_textual(query: str):
-    results = search_client.search(search_text=query, top=3, select=["content"])
+    results = search_client.search(search_text=query, top=5, select=["content"])
     return [r["content"] for r in results]
 
 #busca hibrida combinacao de semantica mais textual
 def search_hibryd(query: str):
-    #busca vetorial
-    semantic_results = search_semantic(query)
-    
-    #busca textual
-    textual_results= search_textual(query)
+    vector_results = search_semantic(query)
 
-    #combiana e remove duplicados mantendo a ordem
-    combined=[]
-    for r in semantic_results + textual_results:
+    textual_results = search_client.search(
+        search_text=query,
+        top=5,
+        select=["content"]
+    )
+    text_results = [r["content"] for r in textual_results if "content" in r]
+
+    # Remove duplicados mantendo a ordem
+    combined = []
+    for r in vector_results + text_results:
         if r not in combined:
             combined.append(r)
-            
-    #retorna os 5 mais relevantes
+
     return combined[:5]
