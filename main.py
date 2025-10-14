@@ -5,12 +5,9 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 import numpy as np
 from src.blob_storage import container_client
-from src.vision_analyzer import analyze_image
 import uuid
 from typing import Optional
-from pdfminer.high_level import extract_pages
-from pdfminer.layout import LTImage
-from io import BytesIO
+
 
 MAX_CONTEXT_TOKENS = 6000 
 
@@ -19,7 +16,7 @@ search_service.create_vector_index()
 
 #carrega o pdf
 # nome do blob no Azure
-blob_name = "IPERALVOLANTINO.pdf"
+blob_name = "BRAZILbrochurev2.pdf"
 blob_client = container_client.get_blob_client(blob_name)
 
 # lê bytes direto do Azure
@@ -32,18 +29,9 @@ if isinstance(pdf_text, list):
 elif isinstance(pdf_text, bytes):
     pdf_text = pdf_text.decode("utf-8", errors="ignore")
 
-#extracao e analise de imagens
-image_descriptions = []
-for page_layout in extract_pages(BytesIO(pdf_bytes)):
-    for element in page_layout:
-        if isinstance(element, LTImage):
-            image_stream = BytesIO(element.stream.get_rawdata())
-            desc = analyze_image(image_stream.getvalue())
-            if desc:
-                image_descriptions.append(f"Página {page_layout.pageid}: {desc}")
-
-if image_descriptions:
-    pdf_text += "\n\n=== DESCRIÇÕES DE IMAGENS ===\n" + "\n".join(image_descriptions)
+# Verifica tipo final
+""" print("Tipo de pdf_text:", type(pdf_text))
+print("Primeiros 200 caracteres:", pdf_text[:200]) """
 
 # corta para evitar exceder limite
 chunks = [pdf_text[i:i+7000] for i in range(0, len(pdf_text), 7000)] 
@@ -90,7 +78,7 @@ async def chat(request: Question):
     history = blob_logs.load_session_history(session_id)
 
     # busca trechos mais relevantes do pdf
-    context_docs = search_service.search_hybrid(question)
+    context_docs = search_service.search_hibryd(question)
     context = " ".join(context_docs)
 
     #prepara a mensagem do sistema para contagem de tokens

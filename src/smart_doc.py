@@ -22,6 +22,4 @@ def extract_text(file_bytes: bytes) -> str:
     #contem todas as páginas, linhas e palavras extraídas do pdf
     result = poller.result()
 
-    text = " ".join(
-        [line.content for page in result.pages for line in page.lines])
-    return text
+    return result.content 
