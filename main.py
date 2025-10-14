@@ -6,7 +6,7 @@ from src.blob_storage import container_client, upload_chunk
 import numpy as np
 from pydantic import BaseModel
 from fastapi import FastAPI
-from src import smart_doc, openai, search_service, blob_logs
+from src import smart_doc, openai, search_service, blob_logs, image_captioning
 
 
 MAX_CONTEXT_TOKENS = 6000
@@ -16,45 +16,67 @@ search_service.create_vector_index()
 
 # carrega o pdf
 # nome do blob no Azure
-blob_name = "BRAZILbrochurev2.pdf"
+blob_name = "covid19.pdf"
 blob_client = container_client.get_blob_client(blob_name)
 
 # lê bytes direto do Azure
 pdf_bytes = blob_client.download_blob().readall()
 
-# extrai texto
-pdf_text = smart_doc.extract_text(pdf_bytes)
-if isinstance(pdf_text, list):
-    pdf_text = " ".join(pdf_text)
-elif isinstance(pdf_text, bytes):
-    pdf_text = pdf_text.decode("utf-8", errors="ignore")
+# extrai o conteúdo estruturado texto, metadados de imagens/tabelas
+print("Iniciando extração estruturada do PDF...")
+content_blocks = smart_doc.extract_all_content(pdf_bytes, blob_name)
 
-# corta para evitar exceder limite
-chunks = [pdf_text[i:i+7000] for i in range(0, len(pdf_text), 7000)]
-
-# cria embeddings para cada chunk
+# cria um array de embeddings para cada chunk
 docs_to_upload = []
 # id base para o documento original
 source_doc_id = blob_name.replace('.', '-')
+chunk_index_counter = 0
 
 # itera sobre cada chunk para criar um documento embedding separado
-for i, chunk in enumerate(chunks):
+for block in content_blocks:
+    if block.type == 'text':
+        # PROCESSAMENTO DE TEXTO (CHUNK E EMBEDDING)
+        # Limpa e faz chunking do texto (com seu limite de 7000 caracteres)
+        text_content = block.content
+        chunks = [text_content[i:i+7000] for i in range(0, len(text_content), 7000)]
 
-    # salva o chunk no container chunk
-    chunk_file_name = f"{source_doc_id}_chunk_{i}.txt"
-    upload_chunk(chunk_file_name, chunk.encode("utf-8"))
+        for i, chunk in enumerate(chunks):
+            chunk_embedding = openai.get_embedding(chunk)
 
-    # cria o embedding normalmente
-    chunk_embedding = openai.get_embedding(chunk)
+            if chunk_embedding is not None:
+                doc = {
+                    "id": f"{source_doc_id}-{chunk_index_counter}", 
+                    "content": chunk,
+                    "contentVector": chunk_embedding,
+                }
+                docs_to_upload.append(doc)
+                chunk_index_counter += 1
 
-    # cria o documento para o Azure Search
-    if chunk_embedding is not None:
-        doc = {
-            "id": f"{source_doc_id}-{i}",
-            "content": chunk,
-            "contentVector": chunk_embedding,
-        }
-        docs_to_upload.append(doc)
+    elif block.type == 'image' and block.bytes:
+        # PROCESSAMENTO DE IMAGEM/TABELA (LEGENDAGEM E EMBEDDING)
+        print(f"Gerando legenda para {block.type} na página {block.page_number}...")
+        
+        #gera legenda (descrição textual) da imagem/tabela
+        caption_text = image_captioning.generate_caption_for_rag(
+             block.bytes, source_doc_id, block.page_number 
+        )
+
+        if caption_text:
+            # 3. Trata a legenda como um chunk de texto e vetoriza
+            caption_embedding = openai.get_embedding(caption_text)
+            
+            if caption_embedding is not None:
+                # O chunk indexado é a DESCRIÇÃO DA IMAGEM
+                doc = {
+                    "id": f"{source_doc_id}-img-{chunk_index_counter}", 
+                    # Este é o texto que será retornado ao LLM como contexto!
+                    "content": caption_text, 
+                    "contentVector": caption_embedding,
+                    # Você pode adicionar um campo 'source_type': 'image' para debug
+                }
+                docs_to_upload.append(doc)
+                chunk_index_counter += 1
+
 
 if len(docs_to_upload) == 0:
     raise ValueError(
