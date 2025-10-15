@@ -17,7 +17,7 @@ app = FastAPI(title="RAG Chatbot")
 search_service.create_vector_index()
 
 # carrega o pdf nome do pdf dentro do container pdfs
-blob_name = "testrag.pdf"
+blob_name = "covid19.pdf"
 blob_client = container_client.get_blob_client(blob_name)
 
 # baixa o arquivo diretamente da nuvem bytes
