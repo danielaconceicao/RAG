@@ -5,8 +5,6 @@ import os
 from io import BytesIO
 from typing import Optional, List
 from pydantic import BaseModel
-# --- MUDANÇA 1: ATUALIZAÇÃO DO SDK ---
-# Substitui 'azure.ai.formrecognizer' por 'azure.ai.documentintelligence'
 from azure.core.credentials import AzureKeyCredential
 from azure.ai.documentintelligence import DocumentIntelligenceClient
 from azure.ai.documentintelligence.models import DocumentAnalysisFeature
@@ -16,7 +14,7 @@ import fitz
 smart_doc_endpoint = os.getenv("AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT")
 smart_doc_key = os.getenv("AZURE_DOCUMENT_INTELLIGENCE_KEY")
 
-
+#   modelo pydantic para representar um bloco do pdf
 class ContentBlock(BaseModel):
     id: int
     type: str 
@@ -28,13 +26,13 @@ class ContentBlock(BaseModel):
 
 doc_client = DocumentIntelligenceClient(endpoint=smart_doc_endpoint, credential=AzureKeyCredential(smart_doc_key))
 
-#usa o document intelligence para analisar o pdf/texto e metadados e o pymupdf para extrair os bytes binários das imagens identificadas. 
+# extrai todo o conteúdo do pdf 
 def extract_all_content(file_bytes: bytes, filename: str) -> List[ContentBlock]:
-
+    ## verifica se as credenciais estão configuradas
     if not smart_doc_endpoint or not smart_doc_key:
         raise ValueError("Le impostazioni di Azure Document Intelligence non sono configurate.")
 
-    # 1. Análise do Documento usando o modelo 'prebuilt-layout'
+    # analisa o layout e o texto com o azure document intelligence
     print(f"Analisi del layout iniziale per {filename}...")
     poller = doc_client.begin_analyze_document(
         "prebuilt-layout", 
@@ -42,25 +40,27 @@ def extract_all_content(file_bytes: bytes, filename: str) -> List[ContentBlock]:
         #usamos ocr_high_resolution para melhor precisão em elementos como gráficos
         features=[DocumentAnalysisFeature.OCR_HIGH_RESOLUTION] 
     )
+    # espera o resultado completo
     result = poller.result()
-    print("Análise de layout concluída.")
 
+    # lista onde serão armazenados os blocos extraídos
     content_blocks: List[ContentBlock] = []
     chunk_index_counter = 0
     
-    #processa o texto conteúdo completo
+    # extrai o conteúdo textual completo
     if result.content:
         content_blocks.append(
             ContentBlock(
                 id=chunk_index_counter, 
                 type='text', 
+                # todo o texto extraído do pdf
                 content=result.content, 
                 page_number=1 
             )
         )
         chunk_index_counter += 1
 
-    #processa Tabelas converte para texto para a RAG
+    #extrai tabelas e converte para texto
     if result.tables:
         for table in result.tables:
             table_text = "\n".join([f"Tabela na página {table.bounding_regions[0].page_number} (Conteúdo estruturado):\n" + table.content])
@@ -75,48 +75,43 @@ def extract_all_content(file_bytes: bytes, filename: str) -> List[ContentBlock]:
             )
             chunk_index_counter += 1
             
-    #processa Figuras gráficos/imagens e usa PyMuPDF para extrair os bytes inicializando o pymupdf
+    # extrai imagens e gráficos com pymupdf
     try:
+         # abre o pdf em memória
         pdf_document = fitz.open(stream=file_bytes, filetype="pdf")
     except Exception as e:
         print(f"Erro ao carregar PDF com PyMuPDF: {e}")
-        #retorna apenas o texto e tabelas rag parcial
-        return content_blocks 
+        return content_blocks
 
+    print(f"🔍 Total de páginas no PDF: {pdf_document.page_count}")
 
-    if result.figures:
-        for i, figure in enumerate(result.figures):
-            #pega a página da figura
-            region = figure.bounding_regions[0]
-            page_number = region.page_number
-            
-            # --- TÉCNICA MAIS SEGURA: EXTRAIR TODAS AS IMAGENS DA PÁGINA ---
-            # Nota: O page_number do DI é 1-indexado, o fitz é 0-indexado
-            pdf_page = pdf_document.load_page(page_number - 1) 
-            images_on_page = pdf_page.get_images(full=True)
-            
-            if images_on_page:
-                xref = images_on_page[0][0] 
-                image_info = pdf_document.extract_image(xref)
-                image_bytes = image_info["image"] 
-                image_ext = image_info["ext"]
-                
-                initial_content = figure.caption.content if figure.caption else f"Figura {i+1} na página {page_number}"
-                
-                content_blocks.append(
-                    ContentBlock(
-                        id=chunk_index_counter, 
-                        type='image', 
-                        content=initial_content,
-                        bytes=image_bytes,
-                        page_number=page_number,
-                        #adicione a extensão aqui para facilitar o image_captioning
-                        bounding_box=[page_number, image_ext] 
-                    )
+    # percorre cada página e coleta as imagens
+    for page_number in range(len(pdf_document)):
+        pdf_page = pdf_document.load_page(page_number)
+        images_on_page = pdf_page.get_images(full=True)
+
+        print(f"Página {page_number + 1}: {len(images_on_page)} imagens encontradas")
+
+        for img_index, img_info in enumerate(images_on_page):
+            xref = img_info[0]
+            image_info = pdf_document.extract_image(xref)
+            image_bytes = image_info["image"]
+            image_ext = image_info["ext"]
+
+             # cria um bloco para cada imagem
+            content_blocks.append(
+                ContentBlock(
+                    id=chunk_index_counter,
+                    type='image',
+                    content=f"Imagem {img_index + 1} na página {page_number + 1}",
+                    image_bytes=image_bytes,
+                    page_number=page_number + 1,
+                    bounding_box=None
                 )
-                chunk_index_counter += 1
+            )
+            chunk_index_counter += 1
                 
     pdf_document.close()
     
-    #retorna a lista completa de texto, tabelas e imagens binárias/metadados
+    # retorna todos os blocos extraídos a lista completa de texto, tabelas e imagens binárias/metadados
     return content_blocks
