@@ -24,7 +24,7 @@ blob_client = container_client.get_blob_client(blob_name)
 pdf_bytes = blob_client.download_blob().readall()
 
 # extrai o conteúdo estruturado texto, metadados de imagens/tabelas
-print("Iniciando extração estruturada do PDF...")
+""" print("Avvio dell'estrazione PDF strutturata...") """
 content_blocks = smart_doc.extract_all_content(pdf_bytes, blob_name)
 
 # cria um array de embeddings para cada chunk
@@ -61,7 +61,7 @@ for block in content_blocks:
 
     elif block.type == 'image' and block.image_bytes:
         # PROCESSAMENTO DE IMAGEM/TABELA (LEGENDAGEM E EMBEDDING)
-        print(f"Gerando legenda para {block.type} na página {block.page_number}...")
+        """ print(f"Generazione della didascalia per {block.type} sulla pagina {block.page_number}...") """
         
         # converte a imagem em uma legenda textual descritiva 
         caption_text = image_captioning.generate_caption_for_rag(

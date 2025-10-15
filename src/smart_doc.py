@@ -63,7 +63,7 @@ def extract_all_content(file_bytes: bytes, filename: str) -> List[ContentBlock]:
     #extrai tabelas e converte para texto
     if result.tables:
         for table in result.tables:
-            table_text = "\n".join([f"Tabela na página {table.bounding_regions[0].page_number} (Conteúdo estruturado):\n" + table.content])
+            table_text = "\n".join([f"Tabella a pagina {table.bounding_regions[0].page_number} (Contenuto strutturato):\n" + table.content])
             
             content_blocks.append(
                 ContentBlock(
@@ -80,17 +80,13 @@ def extract_all_content(file_bytes: bytes, filename: str) -> List[ContentBlock]:
          # abre o pdf em memória
         pdf_document = fitz.open(stream=file_bytes, filetype="pdf")
     except Exception as e:
-        print(f"Erro ao carregar PDF com PyMuPDF: {e}")
+        print(f"Errore durante il caricamento del PDF con PyMuPDF: {e}")
         return content_blocks
-
-    print(f"🔍 Total de páginas no PDF: {pdf_document.page_count}")
 
     # percorre cada página e coleta as imagens
     for page_number in range(len(pdf_document)):
         pdf_page = pdf_document.load_page(page_number)
         images_on_page = pdf_page.get_images(full=True)
-
-        print(f"Página {page_number + 1}: {len(images_on_page)} imagens encontradas")
 
         for img_index, img_info in enumerate(images_on_page):
             xref = img_info[0]
