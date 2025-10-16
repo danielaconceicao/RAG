@@ -9,7 +9,7 @@ from azure.search.documents.indexes.models import (
 import os
 from src.openai import get_embedding
 from azure.search.documents.models import VectorizedQuery
-
+import uuid
 
 search_endpoint = os.getenv("AZURE_AISEARCH_ENDPOINT")
 search_key = os.getenv("AZURE_AISEARCH_KEY")
@@ -71,23 +71,37 @@ def create_vector_index():
     index_client.create_index(index)
     print("Indice creato con successo!")
 
-#envia embeddings ao indice
-def upload_documents(docs):
-    search_client.upload_documents(docs)
-    print("Documenti inviati all'indice.")
+# envia embeddings ao indice
+def upload_documents(chunks):
+    docs = []
+    for chunk in chunks:
+        content = chunk.get("content") if isinstance(chunk, dict) else str(chunk)
 
-#busca trechos mais relevantes no indice
+        # gera o embedding
+        embedding = get_embedding(content)
+        if not embedding:
+            continue
+
+        doc = {
+            "id": str(uuid.uuid4()),
+            "content": content,
+            "contentVector": embedding,  
+        }
+        docs.append(doc)
+
+    search_client.upload_documents(docs)
+
+# busca trechos mais relevantes no indice
 def search_semantic(query: str):
     query_vector = get_embedding(query)
 
-    # Crie a consulta vetorial
+    # crie a consulta vetorial
     vector_query = VectorizedQuery(
         vector=query_vector,
         k_nearest_neighbors=20,
         fields="contentVector"
     )
 
-    # Agora chame o Azure Search corretamente
     results = search_client.search(
         search_text="",  # texto vazio porque estamos usando vetor
         vector_queries=[vector_query],
@@ -106,18 +120,15 @@ def search_textual(query: str):
 #busca hibrida combinacao de semantica mais textual
 def search_hibryd(query: str):
     vector_results = search_semantic(query)
-
     textual_results = search_client.search(
         search_text=query,
         top=5,
         select=["content"]
     )
     text_results = [r["content"] for r in textual_results if "content" in r]
-
-    # Remove duplicados mantendo a ordem
+    # remove duplicados mantendo a ordem
     combined = []
     for r in vector_results + text_results:
         if r not in combined:
             combined.append(r)
-
     return combined[:5]

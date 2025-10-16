@@ -51,12 +51,13 @@ def generate_caption_for_rag(image_bytes: bytes, filename: str, page_number: int
     ]
 
     try:
+        # envia o prompt + imagem para o modelo
         response = client.chat.completions.create(
             model=VISION_DEPLOYMENT, 
             messages=messages,
             max_tokens=500 
         )
-        # retorna apenas o texto gerado a legenda
+        # retorna apenas o texto gerando a legenda
         return response.choices[0].message.content
     except Exception as e:
         print(f"Errore durante la generazione della didascalia per l'immagine: {e}")
