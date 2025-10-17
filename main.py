@@ -7,11 +7,26 @@ import numpy as np
 from pydantic import BaseModel
 from fastapi import FastAPI
 from src import smart_doc, openai, search_service, blob_logs, image_captioning
+from fastapi.middleware.cors import CORSMiddleware
+
+
+app = FastAPI(title="RAG Chatbot")
+
+origin = [
+    "http://localhost:5173"
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origin,                 
+    allow_credentials=True,               
+    allow_methods=["*"],                  
+    allow_headers=["*"],                 
+)
+
 
 # limite de tokens que o modelo pode receber de uma vez
 MAX_CONTEXT_TOKENS = 8000
-
-app = FastAPI(title="RAG Chatbot")
 
 # garante que o índice vetorial já exista no azure search
 search_service.create_vector_index()
