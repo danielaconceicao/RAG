@@ -16,7 +16,6 @@ search_key = os.getenv("AZURE_AISEARCH_KEY")
 index_name = os.getenv("AZURE_AISEARCH_INDEX_NAME")
 
 search_client = SearchClient(search_endpoint, index_name, AzureKeyCredential(search_key))
-
 index_client = SearchIndexClient(search_endpoint, AzureKeyCredential(search_key))
 
 
