@@ -39,7 +39,6 @@ blob_client = container_client.get_blob_client(blob_name)
 pdf_bytes = blob_client.download_blob().readall()
 
 # extrai o conteúdo estruturado texto, metadados de imagens/tabelas
-print("Iniciando extração estruturada do PDF...")
 content_blocks = smart_doc.extract_all_content(pdf_bytes, blob_name)
 
 # cria um array de embeddings para cada chunk
@@ -59,6 +58,7 @@ for block in content_blocks:
         # divide o texto em pedaços menores para embeddings
         chunks = [text_content[i:i+1000] for i in range(0, len(text_content), 1000)]
 
+        # faz a interacao do texto que foi extrato do doc e converte em embeddings
         for chunk in chunks:
             chunk_embedding = openai.get_embedding(chunk)
             if chunk_embedding:
@@ -90,12 +90,12 @@ for block in content_blocks:
 # se nenhum embedding foi criado, lança erro
 if len(docs_to_upload) == 0:
     raise ValueError(
-        "Nenhum embedding válido foi gerado. Verifique o PDF e a função get_embedding."
+        "Non è stato generato alcun embedding valido. Controllare il PDF e la funzione get_embedding.."
     )
 
 # envia todos os embeddings gerados de texto e imagens e salva no azure search pronta para a ricerca sem.
 search_service.upload_documents(docs_to_upload)
-""" print(f"{len(docs_to_upload)} blocos enviados para o índice com sucesso!") """
+""" print(f"{len(docs_to_upload)} blocchi inviati correttamente all'indice!") """
 
 # define modelo Pydantic para a entrada
 class Question(BaseModel):
@@ -104,22 +104,22 @@ class Question(BaseModel):
 
 @app.post("/chat")
 async def chat(request: Question):
-    # recebe a pergunta do usuario
+    # recebe a pergunta do usuario / receives the user's question
     question = request.question
     session_id = request.session_id or str(uuid.uuid4())
-    # carrega a cronologia 
+    # carrega a cronologia / loads the chronology
     history = blob_logs.load_session_history(session_id)
-    # recupera os documentos mais relevantes
+    # recupera os documentos mais relevantes / retrieve the most relevant documents
     context_docs = search_service.search_hibryd(question)
     context = " ".join(context_docs)
 
     system_message = {
         "role": "system",
         "content": (
-            "CRITICAL RULE: If the user message is a simple greeting in ANY language, respond with a polite greeting and short question. "
+            "CRITICAL RULE: If the user message is a simple greeting in ANY language, respond with a polite greeting and short question "
             "Ignore RAG instructions for this turn.\n\n"
-            f"You are a RAG assistant. Respond ONLY based on the following context. "
-            f"If the answer is not explicitly in context, respond: 'The information was not found in the document.'\n\n"
+            f"You are a RAG assistant. Respond ONLY based on the following context "
+            f"If the answer is not explicitly in context, respond: 'The information was not found in the document'\n\n"
             f"Use conversation chronology:\n\n{context}"
         )
     }
@@ -128,15 +128,15 @@ async def chat(request: Question):
     if current_tokens >= MAX_CONTEXT_TOKENS:
         new_session_id = str(uuid.uuid4())
         return {
-            "answer": "Limite de contexto alcançado. Inicie um novo chat. Histórico salvo.",
+            "answer": "Limite di contesto raggiunto. Avvia una nuova chat. Cronologia salvata",
             "session_id": new_session_id
         }
 
-    # envia o contexto e todo o resto para chat gerar a resposta
+    # envia o contexto e todo o resto para chat gerar a resposta / sends the context and everything else to chat to generate the response
     answer = openai.chat_with_context(context, question, history)
     history.append({"role": "user", "content": question})
     history.append({"role": "assistant", "content": answer})
-    # salva o log da sessao mesmo nao tendo um banco de dados
+    # salva o log da sessao mesmo nao tendo um banco de dados / saves the session log even without a database
     blob_logs.save_session_and_log(session_id, history)
 
     return {"answer": answer, "session_id": session_id}

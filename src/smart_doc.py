@@ -14,8 +14,6 @@ smart_doc_endpoint = os.getenv("AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT")
 smart_doc_key = os.getenv("AZURE_DOCUMENT_INTELLIGENCE_KEY")
 
 #   modelo pydantic para representar um bloco do pdf
-
-
 class ContentBlock(BaseModel):
     id: int
     type: str
@@ -44,7 +42,7 @@ def extract_all_content(file_bytes: bytes, filename: str) -> List[ContentBlock]:
         )
         result = poller.result()
     except Exception as e:
-        print(f"[ERRO] Azure Document Intelligence falhou: {e}")
+        print(f"[ERRO] Azure Document Intelligence non è riuscito: {e}")
         result = None
 
     # lista onde serão armazenados os blocos extraídos
@@ -54,10 +52,14 @@ def extract_all_content(file_bytes: bytes, filename: str) -> List[ContentBlock]:
     
     # extrai o conteúdo textual completo
     azure_text_pages = set()
+    # verifica que deu tudo certo na analise
     if result and result.paragraphs:
+        # faz andar um ciclo per verificar cada paragrafo que a ai tirou do pdf
         for paragraph in result.paragraphs:
+            # usa o bounding para indicar onde encontar o texto na pagina
             if paragraph.bounding_regions:
                 page_number = paragraph.bounding_regions[0].page_number
+                # e se e valido o paragrafo coloca ele no meu block
                 if paragraph.content.strip():
                     content_blocks.append(
                         ContentBlock(
@@ -68,9 +70,10 @@ def extract_all_content(file_bytes: bytes, filename: str) -> List[ContentBlock]:
                         )
                     )
                     azure_text_pages.add(page_number)
+                    # atualiza o contador para colocar o id no proximo bloco do conteudo
                     chunk_index_counter += 1
 
-    # Se ainda assim não encontrou texto, mostra aviso
+    # abrir o documento diretamente em memoria para recuperar as paginas perdidas
     try:
         pdf_document = fitz.open(stream=file_bytes, filetype="pdf")
         for page_num in range(pdf_document.page_count):
@@ -86,7 +89,7 @@ def extract_all_content(file_bytes: bytes, filename: str) -> List[ContentBlock]:
                 chunk_index_counter += 1
         pdf_document.close()
     except Exception as e:
-        print(f"[ERRO] Falha na extração de texto com PyMuPDF: {e}")
+        print(f"[ERRO] Estrazione del testo non riuscita con PyMuPDF: {e}")
 
     # extrai tabelas e converte para texto
     if result.tables:
